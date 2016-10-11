@@ -87,8 +87,8 @@ allFiles=os.listdir(readsFilesDir)
 inputFiles=list(set(allFiles))
 
 # 2. making genome indexes
-#print('making genome index...')
-#genomeIndexer()
+print('making genome index...')
+genomeIndexer()
        
 # 3. calling STAR through SGE...
 print('calling STAR through SGE...')
