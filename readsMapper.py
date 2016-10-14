@@ -77,8 +77,8 @@ STARexecutable='/proj/omics4tb/alomana/software/STAR-master/bin/Linux_x86_64/STA
 genomeIndexDir='/proj/omics4tb/alomana/projects/csp.jgi/data/genomeIndex'
 genomeFastaFile='/proj/omics4tb/alomana/projects/csp.jgi/data/genome/Creinhardtii_281_v5.0.fa'
 genomeAnnotationFile='/proj/omics4tb/alomana/projects/csp.jgi/data/genome/Creinhardtii_281_v5.5.gene_exons.gff3'
+sendersDir='/proj/omics4tb/alomana/scratch/csp/senders/'
 numberOfThreads=40
-sendersDir='senders/'
 
 # 1. recover the clean FASTQ files
 print('reading FASTQ files...')
@@ -86,9 +86,12 @@ allTags=[]
 allFiles=os.listdir(readsFilesDir)
 inputFiles=list(set(allFiles))
 
+print(inputFiles)
+sys.exit()
+
 # 2. making genome indexes
-print('making genome index...')
-genomeIndexer()
+#print('making genome index...')
+#genomeIndexer()
        
 # 3. calling STAR through SGE...
 print('calling STAR through SGE...')

@@ -2,7 +2,7 @@
 this script creates the FASTQ files for the saturation curve
 '''
 
-import os,sys,shutil
+import os,sys,random
 
 
 def butcher(sample):
@@ -29,24 +29,23 @@ def butcher(sample):
                 quality=vector
                 allReads[readName]=[sequence,quality]
                 count=0
-        print(allReads)
 
     # f.2. go over resolution decrements, saving FASTQ files of appropriate size
     allKeys=list(allReads.keys())
     numberOfReads=len(allKeys)
-    mr=int(numberOfReads/1e6)
-    while mr > 1:
+    mr=int(numberOfReads/1e6) 
 
-        print('selecting %s mr...'%mr)
+    
+    while mr >= 1:
+
+        print 'selecting %s mr...'%mr
 
         # select n random reads
-        k=int(mr*1e3) ### THIS SHOULD BE 1e6!!!!
-        print(k)
+        k=int(mr*1e6) 
         selectedReads=random.sample(allKeys,k)
-        print(selectedReads[:10]+len(selectedReads))
-
+       
         # write a file
-        outputFile=piecesDir+sample+'resolution.%s.fastq'%str(mr)
+        outputFile=piecesDir+sample+'.resolution.%s.fastq'%str(mr)
         g=open(outputFile,'w')
         for read in selectedReads:
             g.write('%s\n'%read)
@@ -57,30 +56,27 @@ def butcher(sample):
 
         # next iteration
         mr=mr-resolution
-    
 
     return None
 
 # 0. user defined variables
-readsFilesDir='/Users/alomana/scratch/clean/'
-piecesDir='/Users/alomana/scratch/pieces/'
-resolution=3
+readsFilesDir='/proj/omics4tb/alomana/projects/csp.jgi/data/fastq/clean/'
+piecesDir='/proj/omics4tb/alomana/projects/csp.jgi/data/fastq.crumbles/'
+resolution=2
 
 correspondance={}
 correspondance['0hA']='ASCAO'
-correspondance['0hB']='ASCAP'
+#correspondance['0hB']='ASCAP'
 correspondance['24hA']='ASCAS'
 correspondance['24hB']='ASCAT'
-correspondance['48hA']='ASCAU'
+#correspondance['48hA']='ASCAU'
 correspondance['48hB']='ASCAW'
-correspondance['test']='test'
 
 # 1. iterate over samples
-print('iterating over samples...')
 for sample in correspondance.keys():
-
-    sample='test'
     
-    # 2. build a pipeline and submit it to the cluster
-    print('working with sample',sample,'...')
+    # 2. create FASTQ crumbles
+    print 'working with sample'+sample+'...'
     butcher(sample)
+
+# 3. figure maker
