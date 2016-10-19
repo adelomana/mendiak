@@ -1,8 +1,42 @@
-import os,sys
+import os,sys,time
 
 '''
 this script finds the clean FASTQ files and calls STAR for the reads alignment.
 '''
+
+def clusterController():
+
+    '''
+    this function interrogates the cluster and submit +1 job of total capacity (4+1 in our case)
+    '''
+
+    greenLight=False
+
+    while greenLight == False:
+
+        # f.1. interrogating cluster
+        statusFile=scratchDir+'status.txt'
+        os.system('qstat > %s'%statusFile)
+
+        # f.2. retrieving number of jobs
+        currentJobs=0
+        f=open(statusFile,'r')
+        lines=f.readlines()
+        f.close()
+        for line in lines:
+            vector=line.split()
+            if len(vector) > 3:
+                identity=vector[3]
+                if identity == 'alomana':
+                    currentJobs=currentJobs+1
+
+        # f.3. deciding what to do (with my life)
+        if currentJobs >= maxJobs:
+            time.sleep(waitingTime)
+        else:
+            greenLight=True
+            
+    return None
 
 def genomeIndexer():
 
@@ -54,10 +88,11 @@ def STARcalling(inputFile):
     f=open(senderFile,'w')
     f.write('#!/bin/bash\n\n')
     f.write('#$ -N %s\n'%flag)
-    f.write('#$ -o /proj/omics4tb/alomana/scratch/csp/messages.%s.o.txt\n'%flag)
-    f.write('#$ -e /proj/omics4tb/alomana/scratch/csp/messages.%s.e.txt\n'%flag)
+    f.write('#$ -o %smessages.%s.o.txt\n'%(scratchDir,flag))
+    f.write('#$ -e %smessages.%s.e.txt\n'%(scratchDir,flag))
     f.write('#$ -P Bal_alomana\n')
     f.write('#$ -pe serial %s\n'%str(numberOfThreads))
+    f.write('#$ -l mem_free=%s\n'%allocatedMemory)
     f.write('#$ -q baliga\n')
     f.write('#$ -S /bin/bash\n\n')
     f.write('cd /users/alomana\n')
@@ -66,28 +101,31 @@ def STARcalling(inputFile):
     f.close()
 
     # submitting a sender file
-    os.system('qsub %s'%senderFile)
+    clusterController()
+    #os.system('qsub %s'%senderFile)
     
     return None
 
 # 0. defining several input/output paths
-readsFilesDir='/proj/omics4tb/alomana/projects/csp.jgi/data/fastq/clean/'
-bamFilesDir='/proj/omics4tb/alomana/projects/csp.jgi/data/bam/'
+readsFilesDir='/proj/omics4tb/alomana/projects/csp.jgi/data/fastq.crumbles.n5/'
+bamFilesDir='/proj/omics4tb/alomana/projects/csp.jgi/data/bam.crumbles.n5/'
 STARexecutable='/proj/omics4tb/alomana/software/STAR-master/bin/Linux_x86_64/STAR'
 genomeIndexDir='/proj/omics4tb/alomana/projects/csp.jgi/data/genomeIndex'
 genomeFastaFile='/proj/omics4tb/alomana/projects/csp.jgi/data/genome/Creinhardtii_281_v5.0.fa'
 genomeAnnotationFile='/proj/omics4tb/alomana/projects/csp.jgi/data/genome/Creinhardtii_281_v5.5.gene_exons.gff3'
-sendersDir='/proj/omics4tb/alomana/scratch/csp/senders/'
+scratchDir='/proj/omics4tb/alomana/scratch/csp/'
+sendersDir=scratchDir+'senders/'
 numberOfThreads=40
+allocatedMemory='20G'
+maxJobs=5
+waitingTime=15*60 # 15 min
 
 # 1. recover the clean FASTQ files
 print('reading FASTQ files...')
 allTags=[]
 allFiles=os.listdir(readsFilesDir)
 inputFiles=list(set(allFiles))
-
-print(inputFiles)
-sys.exit()
+print(len(inputFiles))
 
 # 2. making genome indexes
 #print('making genome index...')
