@@ -31,6 +31,7 @@ def clusterController():
                     currentJobs=currentJobs+1
 
         # f.3. deciding what to do (with my life)
+        print('%s jobs found'%(str(currentJobs)))
         if currentJobs >= maxJobs:
             time.sleep(waitingTime)
         else:
@@ -82,12 +83,12 @@ def STARcalling(inputFile):
     cmd=flag0+STARexecutable+flag1+flag2+flag3+flag4+flag5
     
     # writing a sender file
-    flag=inputFile.split('-')[0]
+    flag=inputFile.split('-')[0].split('.fastq')[0]
 
     senderFile=sendersDir+flag+'.sh'
     f=open(senderFile,'w')
     f.write('#!/bin/bash\n\n')
-    f.write('#$ -N %s\n'%flag)
+    f.write('#$ -N S%s\n'%flag)
     f.write('#$ -o %smessages.%s.o.txt\n'%(scratchDir,flag))
     f.write('#$ -e %smessages.%s.e.txt\n'%(scratchDir,flag))
     f.write('#$ -P Bal_alomana\n')
@@ -101,7 +102,7 @@ def STARcalling(inputFile):
     f.close()
 
     # submitting a sender file
-    clusterController()
+    #clusterController()
     os.system('qsub %s'%senderFile)
     
     return None
@@ -116,7 +117,7 @@ genomeAnnotationFile='/proj/omics4tb/alomana/projects/csp.jgi/data/genome/Creinh
 scratchDir='/proj/omics4tb/alomana/scratch/csp/'
 sendersDir=scratchDir+'senders/'
 numberOfThreads=40
-allocatedMemory='20G'
+allocatedMemory='15G'
 maxJobs=8
 waitingTime=5*60 # 5 min
 
