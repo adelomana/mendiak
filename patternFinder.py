@@ -1,4 +1,5 @@
 import os,sys
+import matplotlib,matplotlib.pyplot
 
 def peaksDistributionPlotter(peaks,flag):
 
@@ -6,8 +7,25 @@ def peaksDistributionPlotter(peaks,flag):
     this function build 2D histograms of peaks fe and size
     '''
 
-    x=[]
+    x=[];y=[]
+    for name in peaks.keys():
+        fe=peaks[name][-1]
+        size=peaks[name][-2]
+        
+        x.append(fe)
+        y.append(size)
+
+    matplotlib.histogram2d(x,y,normed=True)
+    #matplotlib.imshow(h,interpolation='none')
+    matplotlib.colorbar()
+
+
+    # setting aspect
+    matplotlib.pyplot.tight_layout()
+    matplotlib.pyplot.axes().set_aspect('equal')
     
+    matplotlib.pyplot.savefig('figure.pdf')
+    sys.exit()
 
     return None
 
@@ -99,6 +117,10 @@ def peakReader():
 
 # 0. user defined variables
 peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
+peaksDir='/Users/adriandelomana/scratch/macs2.run3/'
+figuresDir='/Users/alomana/gDrive2/tmp/'
+figuresDir='/Users/adriandelomana/gDrive/tmp'
+
 
 correspondance={}
 correspondance['0hA']='ASCAO'
@@ -131,6 +153,8 @@ for peaksFileName in peaksFileNames:
     # 2.3. plot the distribution of peaks before and after filtering peaks
     peaksDistributionPlotter(peaks,'original')
     peaksDistributionPlotter(filteredPeaks,'filtered')
+
+    sys.exit()
 
 
 # 3. define all genes that have matching patterns

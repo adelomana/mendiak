@@ -63,7 +63,7 @@ def butcher(sample,iteration):
 readsFilesDir='/proj/omics4tb/alomana/projects/csp.jgi/data/fastq/clean/'
 piecesDir='/proj/omics4tb/alomana/projects/csp.jgi/data/fastq.crumbles.n5/'
 peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.crumbles.n5/'
-figuresDir='/Users/alomana/gDrive2/tmp/saturationFigure.pdf'
+figuresDir='/Users/alomana/gDrive2/tmp/'
 resolution=2
 iterations=5
 
