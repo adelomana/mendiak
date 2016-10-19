@@ -35,20 +35,21 @@ def peaksDistributionPlotter(peaks,flag):
     cb=matplotlib.pyplot.colorbar(label='log10 Peak Count',fraction=0.05)
     cb.ax.tick_params(labelsize=10)
 
-    # setting aspect
-    #matplotlib.pyplot.tight_layout()
-    #matplotlib.pyplot.axes().set_aspect('equal')
-
+    # highlightling area of best peaks
+    matplotlib.pyplot.plot([2,5],[3,3],'-k',color='red')
+    matplotlib.pyplot.plot([2,2],[2,3],'-k',color='red')
+    
     matplotlib.pyplot.xlabel('Fold Enrichment')
     matplotlib.pyplot.ylabel('Peak Size (bp)')
 
     positions=numpy.log10(numpy.array([100,200,300,500,750,1000,2000,4000,8000]))
     names=['100','200','300','500','750','1,000','2,000','4,000','8,000']
     matplotlib.pyplot.yticks(positions,names)
+
+    matplotlib.pyplot.title(flag)
     
     matplotlib.pyplot.savefig(figuresDir+'figure.%s.png'%flag)
     matplotlib.pyplot.clf()
-
 
     return None
 
@@ -140,9 +141,9 @@ def peakReader():
 
 # 0. user defined variables
 peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
-peaksDir='/Users/adriandelomana/scratch/macs2.run3/'
+#peaksDir='/Users/adriandelomana/scratch/macs2.run3/'
 figuresDir='/Users/alomana/gDrive2/tmp/'
-figuresDir='/Users/adriandelomana/gDrive/tmp/'
+#figuresDir='/Users/adriandelomana/gDrive/tmp/'
 
 
 correspondance={}
@@ -174,10 +175,8 @@ for peaksFileName in peaksFileNames:
     filteredPeaks=peaksFilter()
 
     # 2.3. plot the distribution of peaks before and after filtering peaks
-    flag=peaksFileName.split('_peaks')[0]+'.original'
+    flag=peaksFileName.split('_peaks')[0]
     peaksDistributionPlotter(peaks,flag)
-    flag=peaksFileName.split('_peaks')[0]+'.filtered'
-    peaksDistributionPlotter(filteredPeaks,flag)
 
 # 3. define all genes that have matching patterns
 #print('finding matching pattern peaks...')

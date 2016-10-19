@@ -3,6 +3,7 @@ this script calls MACS 2.0 to call peaks from aligned bam files.
 '''
 
 import os,sys
+import library
 
 def callerA():
 
@@ -105,8 +106,9 @@ def SGEsubmitter(commands,jobName):
     f.close()
 
     # submitting a sender file
+    library.clusterController()
     os.system('qsub %s'%senderFile)
-    sys.exit()
+    #sys.exit()
 
     return None
 
@@ -200,14 +202,16 @@ def universalCaller(inputFile,controlFiles,name):
 
 # 0. user defined variables
 macs2Executable='/users/alomana/anaconda2/bin/macs2'
-bamDir='/proj/omics4tb/alomana/projects/csp.jgi/data/bam/'
-outputDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
+bamDir='/proj/omics4tb/alomana/projects/csp.jgi/data/bam.crumbles.n5/'
+outputDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.crumbles.n5/'
 scratchDir='/proj/omics4tb/alomana/scratch/macs2/'
 sendersDir=scratchDir+'senders/'
 chromoSizeFile='/proj/omics4tb/alomana/projects/csp.jgi/data/genome/chrom.sizes.txt'
 bigWigExecutable='/proj/omics4tb/alomana/software/bedGraphToBigWig'
 
 numberOfThreads=1
+maxJobs=4 # this should be 144
+waitingTime=1*60 # 5 min
 
 # 1. selecting pair of files to run
 experiments=[
@@ -224,18 +228,18 @@ bamFiles=os.listdir(bamDir)
 # 2. actual calling
 
 # 2.1. calling MACS2.0 using their corresponding ICs
-print '### STARTING CALLER A...'
-callerA()
+#print '### STARTING CALLER A...'
+#callerA()
 
 # 2.2. calling MACS2.0 using their sample ICs
-print '### STARTING CALLER B...'
-callerB()
+#print '### STARTING CALLER B...'
+#callerB()
 
 # 2.3. calling MACS2.0 using pooled ICs
-print '### STARTING CALLER C...'
+print('### STARTING CALLER C...')
 callerC()
 
 # 2.4. calling MACS2.0 using exhaustively all single ICs
-print '### STARTING CALLER D...'
-callerD()
+#print '### STARTING CALLER D...'
+#callerD()
 
