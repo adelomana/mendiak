@@ -102,7 +102,7 @@ def STARcalling(inputFile):
 
     # submitting a sender file
     clusterController()
-    #os.system('qsub %s'%senderFile)
+    os.system('qsub %s'%senderFile)
     
     return None
 
@@ -117,8 +117,8 @@ scratchDir='/proj/omics4tb/alomana/scratch/csp/'
 sendersDir=scratchDir+'senders/'
 numberOfThreads=40
 allocatedMemory='20G'
-maxJobs=5
-waitingTime=15*60 # 15 min
+maxJobs=8
+waitingTime=5*60 # 5 min
 
 # 1. recover the clean FASTQ files
 print('reading FASTQ files...')
