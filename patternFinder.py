@@ -1,4 +1,4 @@
-import os,sys
+import os,sys,numpy
 import matplotlib,matplotlib.pyplot
 
 def peaksDistributionPlotter(peaks,flag):
@@ -13,19 +13,42 @@ def peaksDistributionPlotter(peaks,flag):
         size=peaks[name][-2]
         
         x.append(fe)
-        y.append(size)
+        y.append(numpy.log10(size))
 
-    matplotlib.histogram2d(x,y,normed=True)
-    #matplotlib.imshow(h,interpolation='none')
-    matplotlib.colorbar()
+    print(numpy.mean(x))
+    print(numpy.mean(y))
 
+    feRange=[1,5]
+    sizeRange=[2,4.05]
+
+    h,xedges,yedges,tempo=matplotlib.pyplot.hist2d(x,y,bins=100,range=[feRange,sizeRange])
+    z=numpy.log10(h+1).T
+    zm=numpy.ma.masked_where(z == 0,z)
+
+    #print(xedges)
+    #print(yedges)
+    #print(zm)
+    
+    newViridis=matplotlib.cm.viridis
+    newViridis.set_bad('white')
+    matplotlib.pyplot.imshow(zm,extent=[xedges[0],xedges[-1],yedges[0],yedges[-1]],cmap=newViridis,interpolation='nearest',origin='lower',aspect='auto',vmin=0,vmax=2)
+    cb=matplotlib.pyplot.colorbar(label='log10 Peak Count',fraction=0.05)
+    cb.ax.tick_params(labelsize=10)
 
     # setting aspect
-    matplotlib.pyplot.tight_layout()
-    matplotlib.pyplot.axes().set_aspect('equal')
+    #matplotlib.pyplot.tight_layout()
+    #matplotlib.pyplot.axes().set_aspect('equal')
+
+    matplotlib.pyplot.xlabel('Fold Enrichment')
+    matplotlib.pyplot.ylabel('Peak Size (bp)')
+
+    positions=numpy.log10(numpy.array([100,200,300,500,750,1000,2000,4000,8000]))
+    names=['100','200','300','500','750','1,000','2,000','4,000','8,000']
+    matplotlib.pyplot.yticks(positions,names)
     
-    matplotlib.pyplot.savefig('figure.pdf')
-    sys.exit()
+    matplotlib.pyplot.savefig(figuresDir+'figure.%s.png'%flag)
+    matplotlib.pyplot.clf()
+
 
     return None
 
@@ -119,7 +142,7 @@ def peakReader():
 peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
 peaksDir='/Users/adriandelomana/scratch/macs2.run3/'
 figuresDir='/Users/alomana/gDrive2/tmp/'
-figuresDir='/Users/adriandelomana/gDrive/tmp'
+figuresDir='/Users/adriandelomana/gDrive/tmp/'
 
 
 correspondance={}
@@ -151,11 +174,10 @@ for peaksFileName in peaksFileNames:
     filteredPeaks=peaksFilter()
 
     # 2.3. plot the distribution of peaks before and after filtering peaks
-    peaksDistributionPlotter(peaks,'original')
-    peaksDistributionPlotter(filteredPeaks,'filtered')
-
-    sys.exit()
-
+    flag=peaksFileName.split('_peaks')[0]+'.original'
+    peaksDistributionPlotter(peaks,flag)
+    flag=peaksFileName.split('_peaks')[0]+'.filtered'
+    peaksDistributionPlotter(filteredPeaks,flag)
 
 # 3. define all genes that have matching patterns
 #print('finding matching pattern peaks...')
