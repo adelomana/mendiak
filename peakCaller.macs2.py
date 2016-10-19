@@ -50,18 +50,26 @@ def callerC():
     calling MACS2.0 using pooled ICs
     '''
 
-    for experiment in experiments:
+    
+    for bamFile in bamFiles:
 
-        inputFile=bamDir+[element for element in bamFiles if experiment[0] in element][0]+'/removedDuplicates.bam'
+        # f.1. defining input file
+        inputFile=bamDir+bamFile+'/Aligned.sortedByCoord.out.bam'
 
-        labels=[element[1] for element in experiments]
+        # f.2. defining control files
         controlFiles=[]
-        for bam in bamFiles:
+        labels=[element[1] for element in experiments]
+        controlBamFiles=os.listdir(bamControlDir)
+        for bam in controlBamFiles:
             for label in labels:
                 if label in bam:
-                    controlFiles.append(bamDir+bam+'/removedDuplicates.bam')
-        name='callerC.'+experiment[2]
+                    controlFiles.append(bamControlDir+bam+'/removedDuplicates.bam')
 
+        # f.3. defining files
+        label=bamFile.split('.fastq')[0]
+        name='callerC.'+label
+
+        # f.4. calling
         universalCaller(inputFile,controlFiles,name)
 
     return None
@@ -106,9 +114,8 @@ def SGEsubmitter(commands,jobName):
     f.close()
 
     # submitting a sender file
-    library.clusterController()
+    library.clusterController(scratchDir,maxJobs,waitingTime)
     os.system('qsub %s'%senderFile)
-    #sys.exit()
 
     return None
 
@@ -137,6 +144,7 @@ def universalCaller(inputFile,controlFiles,name):
     flag13='> %smessages.%s.txt'%(scratchDir,name)
     
     pieces=[flag0,macs2Executable,flag1,flag2,flag3,flag4,flag5,flag6,flag7,flag8,flag9,flag10,flag11,flag12,flag13]
+    pieces=[flag0,macs2Executable,flag1,flag2,flag3,flag4,flag5,flag6,flag7,flag8,flag9,flag10,flag11,flag13]
     fullCmd1=' '.join(pieces)
 
     # f.2. working with the generation of FE and logLR files
@@ -196,13 +204,15 @@ def universalCaller(inputFile,controlFiles,name):
     for element in conversionCommands:
         allCommands.append(element)
     
-    SGEsubmitter(allCommands,name)
+    #SGEsubmitter(allCommands,name)
+    SGEsubmitter([fullCmd1],name)
 
     return None
 
 # 0. user defined variables
 macs2Executable='/users/alomana/anaconda2/bin/macs2'
 bamDir='/proj/omics4tb/alomana/projects/csp.jgi/data/bam.crumbles.n5/'
+bamControlDir='/proj/omics4tb/alomana/projects/csp.jgi/data/bam/'
 outputDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.crumbles.n5/'
 scratchDir='/proj/omics4tb/alomana/scratch/macs2/'
 sendersDir=scratchDir+'senders/'
@@ -210,8 +220,8 @@ chromoSizeFile='/proj/omics4tb/alomana/projects/csp.jgi/data/genome/chrom.sizes.
 bigWigExecutable='/proj/omics4tb/alomana/software/bedGraphToBigWig'
 
 numberOfThreads=1
-maxJobs=4 # this should be 144
-waitingTime=1*60 # 5 min
+maxJobs=100 # this should be 100
+waitingTime=5*60 # 5 min
 
 # 1. selecting pair of files to run
 experiments=[

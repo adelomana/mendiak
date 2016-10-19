@@ -1,6 +1,6 @@
-import os
+import os,time
 
-def clusterController():
+def clusterController(scratchDir,maxJobs,waitingTime):
 
     '''
     this function interrogates the cluster and submit +1 job of total capacity (4+1 in our case)
