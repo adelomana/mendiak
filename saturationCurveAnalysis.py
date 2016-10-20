@@ -83,6 +83,7 @@ finalSamples['24hB']=[15.2, 32323]
 finalSamples['48hA']=[19.24,13712]
 finalSamples['48hB']=[33.73,18778]
 
+'''
 # 1. iterate over samples
 for sample in correspondance.keys():    
     # 2. create FASTQ crumbles
@@ -91,6 +92,7 @@ for sample in correspondance.keys():
         iteration=iteration
         print('working with iteration %s...'%str(iteration))
         butcher(sample,iteration)
+'''
 
 # 3. figure maker
 allFiles=os.listdir(peaksDir)
@@ -101,12 +103,13 @@ print('reading peak data...')
 saturationValues={}
 for peakFileName in peakFiles:
 
-    pieces=peakFileName.split('.')
+    pieces=peakFileName.split('_peaks')[0].split('.')
     sampleName=pieces[1]
     mr=int(pieces[3])
     if sampleName not in saturationValues.keys():
         saturationValues[sampleName]={}
-    saturationValues[sampleName][mr]=None
+    if mr not in saturationValues[sampleName].keys():
+        saturationValues[sampleName][mr]=[]
     
     peakFile=peaksDir+peakFileName
     with open(peakFile,'r') as f:
@@ -115,15 +118,15 @@ for peakFileName in peakFiles:
     peaksTextForm=vector[-1].split('_')[-1]
     peaksTextForm=peaksTextForm.replace('\n','')
 
-    if peaksTextForm[-1] == 'a' or peaksTextForm[-1] == 'b':
-        formatted=int(peaksTextForm[:-1])
-    elif peaksTextForm[0] == '#':
+    if peaksTextForm[0] == '#':
         formatted=0
+    elif peaksTextForm[-1].isdigit() == False:
+        formatted=int(peaksTextForm[:-1])
     else:
         formatted=int(peaksTextForm)
-
-    saturationValues[sampleName][mr]=formatted
     
+    saturationValues[sampleName][mr].append(formatted)
+
 # 3.2. building graph
 print('creating figure...')
 
@@ -142,22 +145,25 @@ for sample in allSamples:
     
     x=list(saturationValues[sample].keys())
     x.sort()
-    y=[]
+    y=[];err=[]
     for element in x:
-        y.append(saturationValues[sample][element])
-
-    # adding final sample
-    x.append(finalSamples[sample][0])
-    y.append(finalSamples[sample][1])
+        y.append(numpy.mean(saturationValues[sample][element]))
+        err.append(numpy.std(saturationValues[sample][element]))
 
     # setting up the color
     theColor=colorSchema[sample]
 
-    matplotlib.pyplot.plot(x,y,'o',color=theColor,alpha=0.5,mew=0.)
+    # plotting the rest of the trajectory
+    matplotlib.pyplot.errorbar(x,y,yerr=err,fmt='o',color=theColor,alpha=0.5,mew=0.)
+
+    # adding final sample
+    finalx=finalSamples[sample][0]
+    finaly=finalSamples[sample][1]
+    matplotlib.pyplot.plot(finalx,finaly,'s',color=theColor,mew=0.)
     
     # interpolating lines
     interpolation=scipy.interpolate.PchipInterpolator(x,y)
-    xnew=numpy.linspace(min(x),max(x),num=40,endpoint=True)
+    xnew=numpy.linspace(min(x),max(x),num=500,endpoint=True)
     ynew=interpolation(xnew)
     matplotlib.pyplot.plot(xnew,ynew,'-',lw=2,color=theColor,label=sample)
     
