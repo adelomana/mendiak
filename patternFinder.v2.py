@@ -1,6 +1,35 @@
 import os,sys,numpy
 import matplotlib,matplotlib.pyplot
+import multiprocessing, multiprocessing.pool
 
+def consistentPeakFinder(task):
+
+    '''
+    this function iterates over the peaks of another sample to find consistency
+    '''
+
+    consistentPeak=None
+    
+    # recovering task arguments
+    workingPeakName=task[0]
+    labelA=task[1]
+    labelB=task[2]
+
+    # searching the other sample for consistency
+    peakA=selectedPeaks[labelA][workingPeakName]
+    for peakNameB in selectedPeaks[labelB]:
+        peakB=selectedPeaks[labelB][peakNameB]
+
+        # check if they are in the same contig
+        if peakA[0] == peakB[0]:
+            flag=isConsistent(peakA,peakB)
+            if flag == True:
+                pairA=labelA+'.'+workingPeakName
+                pairB=labelB+'.'+peakNameB
+                consistentPeak=[pairA,pairB]
+
+    return consistentPeak
+    
 def isConsistent(peakA,peakB):
 
     '''
@@ -9,21 +38,18 @@ def isConsistent(peakA,peakB):
 
     flag=False
 
-    # checking if they are at the same contig
-    if peakA[0] == peakB[0]:
-
-        # compute overlap
-        min1=peakA[1]
-        max1=peakA[2]
-        min2=peakB[1]
-        max2=peakB[2]
-        overlap=max(0, min(max1, max2) - max(min1, min2))
-        if overlap > 0:
-            # compute that overlap is at least 50% of average length
-            averageLength=numpy.mean([peakA[3],peakB[3]])
-            threshold=averageLength*0.5
-            if overlap >= threshold:
-                flag=True                
+    # compute overlap
+    min1=peakA[1]
+    max1=peakA[2]
+    min2=peakB[1]
+    max2=peakB[2]
+    overlap=max(0, min(max1, max2) - max(min1, min2))
+    if overlap > 0:
+        # compute that overlap is at least 50% of average length
+        averageLength=numpy.mean([peakA[3],peakB[3]])
+        threshold=averageLength*0.5
+        if overlap >= threshold:
+            flag=True                
         
     return flag
 
@@ -161,9 +187,9 @@ def peakReader():
 
 # 0. user defined variables
 peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
-#peaksDir='/Users/adriandelomana/scratch/macs2.run3/'
+#peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
 figuresDir='/Users/alomana/gDrive2/tmp/'
-#figuresDir='/Users/adriandelomana/gDrive/tmp/'
+#!figuresDir='/Users/adriandelomana/gDrive/tmp/'
 
 
 correspondance={}
@@ -181,9 +207,10 @@ peakLengthThreshold=1000
 print('selecting samples...')
 allFiles=os.listdir(peaksDir)
 peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'callerC' in element]
+#!peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'test' in element]
 peaksFileNames.sort()
 
-# 2. filter peaks: at least 5-fold and no longer than 1 kb
+# 2. filter peaks: at least 2-fold and no longer than 1 kb
 print('filtering samples...')
 
 rawPeaks={}
@@ -213,23 +240,29 @@ print('finding matching pattern peaks...')
 # 3.1. 010 signature
 
 # checking consistency at 24 h samples
-#! consider making first loop parallel, also, make a test folder
-# make this a function, check for all samples
+#@ consider making first loop parallel, also, make a test folder
+#@ make this a function, check for all samples
 consistentPeaks=[]
-for peakNameA in selectedPeaks['24hA']:
-    peakA=selectedPeaks['24hA'][peakNameA]
-    for peakNameB in selectedPeaks['24hB']:
-        peakB=selectedPeaks['24hB'][peakNameB]
-        flag=isConsistent(peakA,peakB)
-        if flag == True:
-            labelA='24hA.'+peakNameA
-            labelB='24hB.'+peakNameB
-            consistentPeaks.append([labelA,labelB])
 
-           
+# entering a parallel world
+hydra=multiprocessing.pool.Pool(4)
+tasks=[[peakName,'24hA','24hB'] for peakName in selectedPeaks['24hA']]
+output=hydra.map(consistentPeakFinder,tasks)
+consistentPeaks=[element for element in output if element != None]
+
+print(len(consistentPeaks))
+sys.exit()
+
 print(len(consistentPeaks))
 print(len(selectedPeaks['24hA']))
 print(len(selectedPeaks['24hB']))
+
+# check the absence of peak for samples 0 h and 48 h make this function parallel too
+for peak in consistentPeaks:
+    print()
+    occupiedArea=None
+
+
 
 sys.exit()
 
