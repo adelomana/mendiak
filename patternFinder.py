@@ -8,7 +8,7 @@ def consistentPeakFinder(task):
     this function iterates over the peaks of another sample to find consistency
     '''
 
-    consistentPeak=None
+    consistentPeaks=[]
     
     # recovering task arguments
     workingPeakName=task[0]
@@ -17,6 +17,7 @@ def consistentPeakFinder(task):
 
     # searching the other sample for consistency
     peakA=selectedPeaks[labelA][workingPeakName]
+    found=[]
     for peakNameB in selectedPeaks[labelB]:
         peakB=selectedPeaks[labelB][peakNameB]
 
@@ -27,8 +28,9 @@ def consistentPeakFinder(task):
                 pairA=labelA+'.'+workingPeakName
                 pairB=labelB+'.'+peakNameB
                 consistentPeak=[pairA,pairB]
-
-    return consistentPeak
+                consistentPeaks.append(consistentPeak)
+                
+    return consistentPeaks
     
 def isConsistent(peakA,peakB):
 
@@ -187,7 +189,7 @@ def peakReader():
 
 # 0. user defined variables
 peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
-#peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
+peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
 figuresDir='/Users/alomana/gDrive2/tmp/'
 #!figuresDir='/Users/adriandelomana/gDrive/tmp/'
 
@@ -203,11 +205,13 @@ correspondance['48hB']='ASCAW'
 peakFEThreshold=2
 peakLengthThreshold=1000
 
+numberOfThreads=4
+
 # 1. selecting the samples
 print('selecting samples...')
 allFiles=os.listdir(peaksDir)
-peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'callerC' in element]
-#!peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'test' in element]
+#! peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'callerC' in element]
+peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'callerE' in element]
 peaksFileNames.sort()
 
 # 2. filter peaks: at least 2-fold and no longer than 1 kb
@@ -228,12 +232,13 @@ for peaksFileName in peaksFileNames:
     selectedPeaks[label]=filteredPeaks
 
     # 2.3. plot the distribution of peaks before and after filtering peaks
-    flag=peaksFileName.split('_peaks')[0]
-    peaksDistributionPlotter(peaks,flag)
+    #flag=peaksFileName.split('_peaks')[0]
+    #peaksDistributionPlotter(peaks,flag)
 
 # 3. define all genes that have matching patterns.
 print('finding matching pattern peaks...')
 
+# 3.1. finding consistent peaks
 # 3.1. 101 signature
 
 
@@ -245,22 +250,20 @@ print('finding matching pattern peaks...')
 consistentPeaks=[]
 
 # entering a parallel world
-hydra=multiprocessing.pool.Pool(4)
+hydra=multiprocessing.pool.Pool(numberOfThreads)
 tasks=[[peakName,'24hA','24hB'] for peakName in selectedPeaks['24hA']]
 output=hydra.map(consistentPeakFinder,tasks)
-consistentPeaks=[element for element in output if element != None]
-
+consistentPeaks=[]
+for element in output:
+    if element != []:
+        for subelement in element:
+            consistentPeaks.append(subelement)
 print(len(consistentPeaks))
-sys.exit()
-
-print(len(consistentPeaks))
-print(len(selectedPeaks['24hA']))
-print(len(selectedPeaks['24hB']))
 
 # check the absence of peak for samples 0 h and 48 h make this function parallel too
-for peak in consistentPeaks:
-    print()
-    occupiedArea=None
+#for peak in consistentPeaks:
+#    print()
+#    occupiedArea=None
 
 
 
