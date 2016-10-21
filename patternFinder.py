@@ -23,7 +23,7 @@ def isConsistent(peakA,peakB):
             averageLength=numpy.mean([peakA[3],peakB[3]])
             threshold=averageLength*0.5
             if overlap >= threshold:
-                flag=True
+                flag=True                
         
     return flag
 
@@ -213,18 +213,20 @@ print('finding matching pattern peaks...')
 # 3.1. 010 signature
 
 # checking consistency at 24 h samples
-#! consider making first loop parallel
+#! consider making first loop parallel, also, make a test folder
+# make this a function, check for all samples
 consistentPeaks=[]
 for peakNameA in selectedPeaks['24hA']:
     peakA=selectedPeaks['24hA'][peakNameA]
     for peakNameB in selectedPeaks['24hB']:
         peakB=selectedPeaks['24hB'][peakNameB]
-        isConsistent(peakA,peakB)
-        if isConsistent == True:
+        flag=isConsistent(peakA,peakB)
+        if flag == True:
             labelA='24hA.'+peakNameA
             labelB='24hB.'+peakNameB
             consistentPeaks.append([labelA,labelB])
 
+           
 print(len(consistentPeaks))
 print(len(selectedPeaks['24hA']))
 print(len(selectedPeaks['24hB']))
