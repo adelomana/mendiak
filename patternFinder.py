@@ -1,6 +1,32 @@
 import os,sys,numpy
 import matplotlib,matplotlib.pyplot
 
+def isConsistent(peakA,peakB):
+
+    '''
+    this function compares 2 peaks: they are considered consistent if they share 50% of their average length.
+    '''
+
+    flag=False
+
+    # checking if they are at the same contig
+    if peakA[0] == peakB[0]:
+
+        # compute overlap
+        min1=peakA[1]
+        max1=peakA[2]
+        min2=peakB[1]
+        max2=peakB[2]
+        overlap=max(0, min(max1, max2) - max(min1, min2))
+        if overlap > 0:
+            # compute that overlap is at least 50% of average length
+            averageLength=numpy.mean([peakA[3],peakB[3]])
+            threshold=averageLength*0.5
+            if overlap >= threshold:
+                flag=True
+        
+    return flag
+
 def peaksDistributionPlotter(peaks,flag):
 
     '''
@@ -15,9 +41,6 @@ def peaksDistributionPlotter(peaks,flag):
         x.append(fe)
         y.append(numpy.log10(size))
 
-    print(numpy.mean(x))
-    print(numpy.mean(y))
-
     feRange=[1,5]
     sizeRange=[2,4.05]
 
@@ -25,9 +48,6 @@ def peaksDistributionPlotter(peaks,flag):
     z=numpy.log10(h+1).T
     zm=numpy.ma.masked_where(z == 0,z)
 
-    #print(xedges)
-    #print(yedges)
-    #print(zm)
     
     newViridis=matplotlib.cm.viridis
     newViridis.set_bad('white')
@@ -165,24 +185,53 @@ peaksFileNames.sort()
 
 # 2. filter peaks: at least 5-fold and no longer than 1 kb
 print('filtering samples...')
+
+rawPeaks={}
+selectedPeaks={}
 for peaksFileName in peaksFileNames:
-    
-    print('working with sample %s...'%peaksFileName)
+
+    label=peaksFileName.split('_')[0].split('.')[1]
+    print('filtering sample %s...'%label)
     # 2.1. reading peaks
     peaks=peakReader()
+    rawPeaks[label]=peaks
 
     # 2.2. filtering peaks
     filteredPeaks=peaksFilter()
+    selectedPeaks[label]=filteredPeaks
 
     # 2.3. plot the distribution of peaks before and after filtering peaks
     flag=peaksFileName.split('_peaks')[0]
     peaksDistributionPlotter(peaks,flag)
 
-# 3. define all genes that have matching patterns
-#print('finding matching pattern peaks...')
+# 3. define all genes that have matching patterns.
+print('finding matching pattern peaks...')
+
 # 3.1. 101 signature
 
+
 # 3.1. 010 signature
+
+# checking consistency at 24 h samples
+#! consider making first loop parallel
+consistentPeaks=[]
+for peakNameA in selectedPeaks['24hA']:
+    peakA=selectedPeaks['24hA'][peakNameA]
+    for peakNameB in selectedPeaks['24hB']:
+        peakB=selectedPeaks['24hB'][peakNameB]
+        isConsistent(peakA,peakB)
+        if isConsistent == True:
+            labelA='24hA.'+peakNameA
+            labelB='24hB.'+peakNameB
+            consistentPeaks.append([labelA,labelB])
+
+print(len(consistentPeaks))
+print(len(selectedPeaks['24hA']))
+print(len(selectedPeaks['24hB']))
+
+sys.exit()
+
+# checking absence at 0 h and 48 h. 
 
 # 4. define significance
 #print('assessing signficance of found patterns...')
