@@ -31,6 +31,31 @@ def consistentPeakFinder(task):
                 consistentPeaks.append(consistentPeak)
                 
     return consistentPeaks
+
+def generalConsistency():
+
+    '''
+    this function checks the consistency of peaks over replicates
+    '''
+
+    hydra=multiprocessing.pool.Pool(numberOfThreads)
+    consistentPeaks0=[]
+    consistentPeaks24=[]
+    consistentPeaks48=[]
+    
+    # working with 0 h samples
+
+    # working with 24 h samples
+    tasks=[[peakName,'24hA','24hB'] for peakName in selectedPeaks['24hA']]
+    output=hydra.map(consistentPeakFinder,tasks)
+    for element in output:
+        if element != []:
+            for subelement in element:
+                consistentPeaks24.append(subelement)
+
+    # working with 48 h samples
+
+    return consistentPeaks0,consistentPeaks24,consistentPeaks48
     
 def isConsistent(peakA,peakB):
 
@@ -239,6 +264,14 @@ for peaksFileName in peaksFileNames:
 print('finding matching pattern peaks...')
 
 # 3.1. finding consistent peaks
+consistentPeaks0,consistentPeaks24,consistentPeaks48=generalConsistency()
+
+print(consistentPeaks0)
+print(consistentPeaks24)
+print(consistentPeaks48)
+
+sys.exit()
+
 # 3.1. 101 signature
 
 
