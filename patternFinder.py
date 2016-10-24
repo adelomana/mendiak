@@ -1,4 +1,4 @@
-import os,sys,numpy
+import os,sys,numpy,pickle
 import matplotlib,matplotlib.pyplot
 import multiprocessing, multiprocessing.pool
 
@@ -16,10 +16,10 @@ def consistentPeakFinder(task):
     labelB=task[2]
 
     # searching the other sample for consistency
-    peakA=rawPeaks[labelA][workingPeakName] #! rawPeaks
+    peakA=workingPeaks[labelA][workingPeakName] 
     found=[]
-    for peakNameB in rawPeaks[labelB]: #! rawPeaks
-        peakB=rawPeaks[labelB][peakNameB] #! rawPeaks
+    for peakNameB in workingPeaks[labelB]: 
+        peakB=workingPeaks[labelB][peakNameB] 
 
         # check if they are in the same contig
         if peakA[0] == peakB[0]:
@@ -32,7 +32,7 @@ def consistentPeakFinder(task):
                 
     return consistentPeaks
 
-def generalConsistency():
+def generalConsistency(workingPeaks):
 
     '''
     this function checks the consistency of peaks over replicates
@@ -42,7 +42,7 @@ def generalConsistency():
     
     # working with all comparisons
     consistentPeaks={}
-    samples=list(rawPeaks.keys()) #! selectedPeaks
+    samples=list(workingPeaks.keys())
     samples.sort()
 
     for i in range(len(samples)):
@@ -50,7 +50,7 @@ def generalConsistency():
             if i <= j:
                 comparison=[]
                 theKey=(samples[i],samples[j])
-                tasks=tasks=[[peakName,samples[i],samples[j]] for peakName in rawPeaks[samples[i]]] # selectedPeaks
+                tasks=tasks=[[peakName,samples[i],samples[j]] for peakName in workingPeaks[samples[i]]]
                 output=hydra.map(consistentPeakFinder,tasks)
                 for element in output:
                     if element != []:
@@ -58,7 +58,7 @@ def generalConsistency():
                             comparison.append(subelement)
                 consistentPeaks[theKey]=comparison
 
-    # making a graphical representation
+    # creating variable for graphical representation
     M=[]
     for i in range(len(samples)):
         v=[]
@@ -69,12 +69,10 @@ def generalConsistency():
                 workingKey=localKey
             else:
                 workingKey=inverseKey
-            v.append(consistentPeaks[workingKey])
+            v.append(len(consistentPeaks[workingKey]))
         M.append(v)
         
-    matrixGrapher(M,samples)
-
-    return consistentPeaks
+    return consistentPeaks,M
     
 def isConsistent(peakA,peakB):
 
@@ -107,28 +105,25 @@ def matrixGrapher(M,labels):
 
     figureName=figuresDir+'peakConsistency.png'
 
-    print(M)
-
     matplotlib.pyplot.imshow(M,interpolation='none',cmap='viridis')
     cb=matplotlib.pyplot.colorbar(label='Consistent Peaks',orientation='vertical',fraction=0.01) 
     cb.ax.tick_params(labelsize=10)
     matplotlib.pyplot.grid(False)
 
     # setting the numbers
-    x=-0.3
-    y=0.1
+    x=0.
+    y=0.
     deltax=1.
     deltay=1.
     for i in range(len(M)):
         for j in range(len(M)):
-            if i != j:
-                value=str(M[i][j])
-                matplotlib.pyplot.text(x+deltax*i,y+deltay*j,value,fontsize=10,color='white')
+            stringValue=str(M[i][j])
+            matplotlib.pyplot.text(x+deltax*i,y+deltay*j,stringValue,fontsize=10,color='white',horizontalalignment='center',verticalalignment='center')
 
     matplotlib.pyplot.xticks(range(len(labels)),labels,size=18,rotation=90)
     matplotlib.pyplot.yticks(range(len(labels)),labels,size=18)
     
-    matplotlib.pyplot.tight_layout()
+    #matplotlib.pyplot.tight_layout()
     matplotlib.pyplot.tick_params(axis='x',which='both',bottom='off',top='off')
     matplotlib.pyplot.tick_params(axis='y',which='both',right='off',left='off')
     matplotlib.pyplot.axes().set_aspect('equal')
@@ -276,6 +271,7 @@ def peakReader():
 peaksDir='/Users/adriandelomana/tempo/macs2.test/'
 #figuresDir='/Users/alomana/gDrive2/tmp/'
 figuresDir='/Users/adriandelomana/gDrive/tmp/'
+jarFile='/Users/adriandelomana/gDrive/tmp/jarFile.pckl'
 
 
 correspondance={}
@@ -319,38 +315,31 @@ for peaksFileName in peaksFileNames:
     #peaksDistributionPlotter(peaks,flag)
 
 # 3. define all genes that have matching patterns.
-print('finding matching pattern peaks...')
+print('finding consistency among peaks...')
 
+workingPeaks=rawPeaks
 # 3.1. finding consistent peaks
-consistentPeaks=generalConsistency()
+consistentPeaks,M=generalConsistency(rawPeaks)
 
-for key in consistentPeaks.keys():
-    print(key,len(consistentPeaks[key]))
+# 3.2. pickling variables for later
+f=open(jarFile,'wb')
+pickle.dump(M,f)
+f.close()
 
+f=open(jarFile,'rb')
+M=pickle.load(f)
+f.close()
 
-sys.exit()
+# 3.3. plotting consistency numbers
+sampleNames=list(workingPeaks.keys())
+sampleNames.sort()
+matrixGrapher(M,sampleNames)
+
 
 # 3.1. 101 signature
 
 
 # 3.1. 010 signature
-
-# checking consistency at 24 h samples
-#@ consider making first loop parallel, also, make a test folder
-#@ make this a function, check for all samples
-consistentPeaks=[]
-
-
-# check the absence of peak for samples 0 h and 48 h make this function parallel too
-#for peak in consistentPeaks:
-#    print()
-#    occupiedArea=None
-
-
-
-sys.exit()
-
-# checking absence at 0 h and 48 h. 
 
 # 4. define significance
 #print('assessing signficance of found patterns...')
