@@ -16,20 +16,26 @@ def consistentPeakFinder(task):
     labelB=task[2]
 
     # searching the other sample for consistency
+    founds={}
     peakA=workingPeaks[labelA][workingPeakName] 
-    found=[]
     for peakNameB in workingPeaks[labelB]: 
         peakB=workingPeaks[labelB][peakNameB] 
 
         # check if they are in the same contig
         if peakA[0] == peakB[0]:
-            flag=isConsistent(peakA,peakB)
+            flag,overlap=isConsistent(peakA,peakB)
             if flag == True:
                 pairA=labelA+'.'+workingPeakName
                 pairB=labelB+'.'+peakNameB
                 consistentPeak=[pairA,pairB]
-                consistentPeaks.append(consistentPeak)
-                
+                founds[overlap]=consistentPeak
+
+    if founds != {}:
+        overlaps=list(founds.keys())
+        if len(overlaps) > 1:
+            overlaps.sort()
+        consistentPeaks=founds[overlaps[0]]
+
     return consistentPeaks
 
 def generalConsistency(workingPeaks):
@@ -51,11 +57,11 @@ def generalConsistency(workingPeaks):
                 comparison=[]
                 theKey=(samples[i],samples[j])
                 tasks=tasks=[[peakName,samples[i],samples[j]] for peakName in workingPeaks[samples[i]]]
+                print('\tcomparing %s peaks between samples %s and %s...'%(len(tasks),theKey[0],theKey[1]))
                 output=hydra.map(consistentPeakFinder,tasks)
                 for element in output:
                     if element != []:
-                        for subelement in element:
-                            comparison.append(subelement)
+                        comparison.append(element[1])
                 consistentPeaks[theKey]=comparison
 
     # creating variable for graphical representation
@@ -95,7 +101,7 @@ def isConsistent(peakA,peakB):
         if overlap >= threshold:
             flag=True                
         
-    return flag
+    return flag,overlap
 
 def matrixGrapher(M,labels):
 
@@ -122,11 +128,12 @@ def matrixGrapher(M,labels):
 
     matplotlib.pyplot.xticks(range(len(labels)),labels,size=18,rotation=90)
     matplotlib.pyplot.yticks(range(len(labels)),labels,size=18)
-    
-    #matplotlib.pyplot.tight_layout()
+       
     matplotlib.pyplot.tick_params(axis='x',which='both',bottom='off',top='off')
     matplotlib.pyplot.tick_params(axis='y',which='both',right='off',left='off')
     matplotlib.pyplot.axes().set_aspect('equal')
+    matplotlib.pyplot.title('filtered set peaks')
+    matplotlib.pyplot.tight_layout(0.5)
     matplotlib.pyplot.savefig(figureName)
 
     matplotlib.pyplot.clf()
@@ -266,13 +273,9 @@ def peakReader():
     return peaks
 
 # 0. user defined variables
-#peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
-#peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
-peaksDir='/Users/adriandelomana/tempo/macs2.test/'
-#figuresDir='/Users/alomana/gDrive2/tmp/'
-figuresDir='/Users/adriandelomana/gDrive/tmp/'
-jarFile='/Users/adriandelomana/gDrive/tmp/jarFile.pckl'
-
+peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
+figuresDir='/Volumes/omics4tb/alomana/scratch/'
+jarFile='/Volumes/omics4tb/alomana/scratch/jarFile_filtered.pckl'
 
 correspondance={}
 correspondance['0hA']='ASCAO'
@@ -285,12 +288,12 @@ correspondance['48hB']='ASCAW'
 peakFEThreshold=2
 peakLengthThreshold=1000
 
-numberOfThreads=4
+numberOfThreads=16
 
 # 1. selecting the samples
 print('selecting samples...')
 allFiles=os.listdir(peaksDir)
-peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'callerE' in element]
+peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'callerC' in element]
 peaksFileNames.sort()
 
 # 2. filter peaks: at least 2-fold and no longer than 1 kb
@@ -319,12 +322,15 @@ print('finding consistency among peaks...')
 
 workingPeaks=rawPeaks
 # 3.1. finding consistent peaks
-consistentPeaks,M=generalConsistency(rawPeaks)
+#consistentPeaks,M=generalConsistency(workingPeaks)
 
 # 3.2. pickling variables for later
-f=open(jarFile,'wb')
-pickle.dump(M,f)
-f.close()
+#f=open(jarFile,'wb')
+#pickle.dump(M,f)
+#f.close()
+
+#print(M)
+#sys.exit()
 
 f=open(jarFile,'rb')
 M=pickle.load(f)
