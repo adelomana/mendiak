@@ -16,10 +16,10 @@ def consistentPeakFinder(task):
     labelB=task[2]
 
     # searching the other sample for consistency
-    peakA=selectedPeaks[labelA][workingPeakName]
+    peakA=rawPeaks[labelA][workingPeakName] #! rawPeaks
     found=[]
-    for peakNameB in selectedPeaks[labelB]:
-        peakB=selectedPeaks[labelB][peakNameB]
+    for peakNameB in rawPeaks[labelB]: #! rawPeaks
+        peakB=rawPeaks[labelB][peakNameB] #! rawPeaks
 
         # check if they are in the same contig
         if peakA[0] == peakB[0]:
@@ -39,23 +39,42 @@ def generalConsistency():
     '''
 
     hydra=multiprocessing.pool.Pool(numberOfThreads)
-    consistentPeaks0=[]
-    consistentPeaks24=[]
-    consistentPeaks48=[]
     
-    # working with 0 h samples
+    # working with all comparisons
+    consistentPeaks={}
+    samples=list(rawPeaks.keys()) #! selectedPeaks
+    samples.sort()
 
-    # working with 24 h samples
-    tasks=[[peakName,'24hA','24hB'] for peakName in selectedPeaks['24hA']]
-    output=hydra.map(consistentPeakFinder,tasks)
-    for element in output:
-        if element != []:
-            for subelement in element:
-                consistentPeaks24.append(subelement)
+    for i in range(len(samples)):
+        for j in range(len(samples)):
+            if i <= j:
+                comparison=[]
+                theKey=(samples[i],samples[j])
+                tasks=tasks=[[peakName,samples[i],samples[j]] for peakName in rawPeaks[samples[i]]] # selectedPeaks
+                output=hydra.map(consistentPeakFinder,tasks)
+                for element in output:
+                    if element != []:
+                        for subelement in element:
+                            comparison.append(subelement)
+                consistentPeaks[theKey]=comparison
 
-    # working with 48 h samples
+    # making a graphical representation
+    M=[]
+    for i in range(len(samples)):
+        v=[]
+        for j in range(len(samples)):
+            localKey=(samples[i],samples[j])
+            inverseKey=(samples[j],samples[i])
+            if localKey in consistentPeaks.keys():
+                workingKey=localKey
+            else:
+                workingKey=inverseKey
+            v.append(consistentPeaks[workingKey])
+        M.append(v)
+        
+    matrixGrapher(M,samples)
 
-    return consistentPeaks0,consistentPeaks24,consistentPeaks48
+    return consistentPeaks
     
 def isConsistent(peakA,peakB):
 
@@ -79,6 +98,45 @@ def isConsistent(peakA,peakB):
             flag=True                
         
     return flag
+
+def matrixGrapher(M,labels):
+
+    '''
+    this figure builds the correlation matrix
+    '''
+
+    figureName=figuresDir+'peakConsistency.png'
+
+    print(M)
+
+    matplotlib.pyplot.imshow(M,interpolation='none',cmap='viridis')
+    cb=matplotlib.pyplot.colorbar(label='Consistent Peaks',orientation='vertical',fraction=0.01) 
+    cb.ax.tick_params(labelsize=10)
+    matplotlib.pyplot.grid(False)
+
+    # setting the numbers
+    x=-0.3
+    y=0.1
+    deltax=1.
+    deltay=1.
+    for i in range(len(M)):
+        for j in range(len(M)):
+            if i != j:
+                value=str(M[i][j])
+                matplotlib.pyplot.text(x+deltax*i,y+deltay*j,value,fontsize=10,color='white')
+
+    matplotlib.pyplot.xticks(range(len(labels)),labels,size=18,rotation=90)
+    matplotlib.pyplot.yticks(range(len(labels)),labels,size=18)
+    
+    matplotlib.pyplot.tight_layout()
+    matplotlib.pyplot.tick_params(axis='x',which='both',bottom='off',top='off')
+    matplotlib.pyplot.tick_params(axis='y',which='both',right='off',left='off')
+    matplotlib.pyplot.axes().set_aspect('equal')
+    matplotlib.pyplot.savefig(figureName)
+
+    matplotlib.pyplot.clf()
+
+    return None
 
 def peaksDistributionPlotter(peaks,flag):
 
@@ -213,10 +271,11 @@ def peakReader():
     return peaks
 
 # 0. user defined variables
-peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
-peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
-figuresDir='/Users/alomana/gDrive2/tmp/'
-#!figuresDir='/Users/adriandelomana/gDrive/tmp/'
+#peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
+#peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
+peaksDir='/Users/adriandelomana/tempo/macs2.test/'
+#figuresDir='/Users/alomana/gDrive2/tmp/'
+figuresDir='/Users/adriandelomana/gDrive/tmp/'
 
 
 correspondance={}
@@ -235,7 +294,6 @@ numberOfThreads=4
 # 1. selecting the samples
 print('selecting samples...')
 allFiles=os.listdir(peaksDir)
-#! peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'callerC' in element]
 peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'callerE' in element]
 peaksFileNames.sort()
 
@@ -264,11 +322,11 @@ for peaksFileName in peaksFileNames:
 print('finding matching pattern peaks...')
 
 # 3.1. finding consistent peaks
-consistentPeaks0,consistentPeaks24,consistentPeaks48=generalConsistency()
+consistentPeaks=generalConsistency()
 
-print(consistentPeaks0)
-print(consistentPeaks24)
-print(consistentPeaks48)
+for key in consistentPeaks.keys():
+    print(key,len(consistentPeaks[key]))
+
 
 sys.exit()
 
@@ -282,16 +340,6 @@ sys.exit()
 #@ make this a function, check for all samples
 consistentPeaks=[]
 
-# entering a parallel world
-hydra=multiprocessing.pool.Pool(numberOfThreads)
-tasks=[[peakName,'24hA','24hB'] for peakName in selectedPeaks['24hA']]
-output=hydra.map(consistentPeakFinder,tasks)
-consistentPeaks=[]
-for element in output:
-    if element != []:
-        for subelement in element:
-            consistentPeaks.append(subelement)
-print(len(consistentPeaks))
 
 # check the absence of peak for samples 0 h and 48 h make this function parallel too
 #for peak in consistentPeaks:
