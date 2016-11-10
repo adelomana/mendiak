@@ -85,6 +85,25 @@ def generalConsistency(workingPeaks):
         
     return consistentPeaks,M
 
+def genomeOccupancyCalculator(assessingPeaks,label):
+
+    '''
+    this function computes the size of the genome peaks occupy
+    '''
+
+    sumLength=0
+    allLabels=[]
+    for peakName in assessingPeaks.keys():
+        currentLabel=assessingPeaks[peakName][0]+'.'+str(assessingPeaks[peakName][1])+'.'+str(assessingPeaks[peakName][2])
+        if currentLabel not in allLabels:
+            allLabels.append(currentLabel)
+            peakSize=assessingPeaks[peakName][3]
+            sumLength=sumLength+peakSize
+    percentage=sumLength/genomeSize
+    print('\tsum of',label,'peak lengths is',sumLength,'relative size',percentage)
+
+    return None
+
 def genomeReader():
 
     '''
@@ -378,7 +397,9 @@ def peaksFilter():
 ##
 
 # 0. user defined variables
-peaksDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
+#peaksDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
+peaksDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
+
 figuresDir='/proj/omics4tb/alomana/scratch/'
 jarFile='/proj/omics4tb/alomana/projects/csp.jgi/data/jars/jarFile_full.pckl'
 gff3File='/proj/omics4tb/alomana/projects/csp.jgi/data/genome/Creinhardtii_281_v5.5.gene.gff3'
@@ -403,7 +424,7 @@ genePositions=genomeReader()
 # 1. selecting the samples
 print('selecting samples...')
 allFiles=os.listdir(peaksDir)
-peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'callerE' in element]
+peaksFileNames=[element for element in allFiles if '_peaks.xls' in element if 'callerC' in element]
 peaksFileNames.sort()
 
 # 2. filter peaks: at least 2-fold and no longer than 1 kb
@@ -423,9 +444,15 @@ for peaksFileName in peaksFileNames:
     filteredPeaks=peaksFilter()
     selectedPeaks[label]=filteredPeaks
 
-    # 2.3. plot the distribution of peaks before and after filtering peaks
+    # 2.3. plot the distribution of peaks
     #flag=peaksFileName.split('_peaks')[0]
     #peaksDistributionPlotter(peaks,flag)
+
+    # 2.4. computing the size of genome that peaks occupy
+    genomeOccupancyCalculator(peaks,'all')
+    genomeOccupancyCalculator(filteredPeaks,'filtered')
+
+sys.exit()
 
 # 3. define all genes that have matching patterns.
 print('finding consistency among peaks...')
