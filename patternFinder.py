@@ -1,3 +1,8 @@
+###
+### this script explore the distribution of patterns between expresion and peak locations
+###
+
+
 import os,sys,numpy,pickle
 import matplotlib,matplotlib.pyplot
 import multiprocessing, multiprocessing.pool
@@ -368,6 +373,10 @@ def peaksFilter():
     
     return filteredPeaks
 
+##
+## MAIN
+##
+
 # 0. user defined variables
 peaksDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
 figuresDir='/proj/omics4tb/alomana/scratch/'
@@ -384,6 +393,7 @@ correspondance['48hB']='ASCAW'
 
 peakFEThreshold=2
 peakLengthThreshold=1000
+genomeSize=111098438
 
 numberOfThreads=16
 
