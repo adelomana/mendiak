@@ -60,8 +60,8 @@ def butcher(sample,iteration):
     return None
 
 # 0. user defined variables
-readsFilesDir='/proj/omics4tb/alomana/projects/csp.jgi/data/fastq/clean/'
-piecesDir='/proj/omics4tb/alomana/projects/csp.jgi/data/fastq.crumbles.n5/'
+readsFilesDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/fastq/clean/'
+piecesDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/fastq.crumbles.n5/'
 peaksDir='/Volumes/omics4tb/alomana/projects/csp.jgi/data/macs2.crumbles.n5/'
 figuresDir='/Users/alomana/gDrive2/tmp/'
 resolution=2
@@ -171,15 +171,14 @@ for sample in allSamples:
 matplotlib.pyplot.xlim([0,35])
 matplotlib.pyplot.ylim([-1000,40000])
 
-matplotlib.pyplot.xlabel('sequencing depth (mr)')
-matplotlib.pyplot.ylabel('peaks (x1e3)')
+matplotlib.pyplot.xlabel('sequencing depth (mr)',fontsize=28)
+matplotlib.pyplot.ylabel('peaks (x1e3)',fontsize=28)
 
 matplotlib.pyplot.legend(loc=2)
 
-matplotlib.pyplot.yticks([5000,10000,15000,20000,25000,30000,35000,40000],['5','10','15','20','25','30','35','40'])
+matplotlib.pyplot.yticks([5000,10000,15000,20000,25000,30000,35000,40000],['5','10','15','20','25','30','35','40'],fontsize=20)
+matplotlib.pyplot.xticks(fontsize=20)
+
+matplotlib.pyplot.tight_layout()
 
 matplotlib.pyplot.savefig(figuresDir+'saturationCurve.png')
-
-        
-
-
