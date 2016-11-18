@@ -2,10 +2,12 @@
 ### this script explore the distribution of patterns between expresion and peak locations
 ###
 
-
-import os,sys,numpy,pickle
-import matplotlib,matplotlib.pyplot
+import os,sys,numpy,pickle,copy
 import multiprocessing, multiprocessing.pool
+
+import matplotlib
+matplotlib.use('Agg') # necessary for saving figures at remove machine
+import matplotlib.pyplot
 
 def consistentPeakFinder(task):
 
@@ -21,10 +23,10 @@ def consistentPeakFinder(task):
     labelB=task[2]
 
     # searching the other sample for consistency
-    founds={}
-    peakA=workingPeaks[labelA][workingPeakName] 
-    for peakNameB in workingPeaks[labelB]: 
-        peakB=workingPeaks[labelB][peakNameB] 
+    founds=[]
+    peakA=rawPeaks[labelA][workingPeakName] 
+    for peakNameB in rawPeaks[labelB]: 
+        peakB=rawPeaks[labelB][peakNameB] 
 
         # check if they are in the same contig
         if peakA[0] == peakB[0]:
@@ -32,18 +34,32 @@ def consistentPeakFinder(task):
             if flag == True:
                 pairA=labelA+'.'+workingPeakName
                 pairB=labelB+'.'+peakNameB
-                consistentPeak=[pairA,pairB]
-                founds[overlap]=consistentPeak
-
-    if founds != {}:
-        overlaps=list(founds.keys())
-        if len(overlaps) > 1:
-            overlaps.sort()
-        consistentPeaks=founds[overlaps[0]]
-
+                consistentPair=[pairA,pairB]
+                founds.append([consistentPair,overlap])
+                
+    # dealing with multiple hits
+    if founds != []:
+        if len(founds) == 1:
+            consistentPeaks=founds[0][0]
+        else:
+            overlaps=[element[1] for element in founds]
+            sortedOverlaps=copy.deepcopy(overlaps)
+            sortedOverlaps.sort(reverse=True)
+            if sortedOverlaps[0] != sortedOverlaps[1]:
+                theIndex=overlaps.index(sortedOverlaps[0])
+                consistentPeaks=founds[theIndex][0]
+            else:
+                feRanks=[]
+                putativePeaks=[element[0][1] for element in founds if element[1] == sortedOverlaps[0]]
+                feRanks=[rawPeaks[labelB][element.split(labelB+'.')[1]][-1] for element in putativePeaks]
+                sortedFEranks=copy.deepcopy(feRanks)
+                sortedFEranks.sort(reverse=True)
+                selected=putativePeaks[feRanks.index(sortedFEranks[0])]
+                consistentPeaks=[founds[0][0][0],selected]
+                
     return consistentPeaks
 
-def generalConsistency(workingPeaks):
+def generalConsistency():
 
     '''
     this function checks the consistency of peaks over replicates
@@ -51,39 +67,63 @@ def generalConsistency(workingPeaks):
 
     hydra=multiprocessing.pool.Pool(numberOfThreads)
     
-    # working with all comparisons
-    consistentPeaks={}
-    samples=list(workingPeaks.keys())
+    consistentAllPeaks={}
+    consistentFilteredPeaks={}
+    
+    samples=list(rawPeaks.keys())
     samples.sort()
 
     for i in range(len(samples)):
+        filteredPeakNamesA=list(selectedPeaks[samples[i]].keys())
         for j in range(len(samples)):
-            if i <= j:
-                comparison=[]
+            if i < j:
+                filteredPeakNamesB=list(selectedPeaks[samples[j]].keys())
+                comparisonA=[]
+                comparisonF=[]
                 theKey=(samples[i],samples[j])
-                tasks=tasks=[[peakName,samples[i],samples[j]] for peakName in workingPeaks[samples[i]]]
-                print('\tcomparing %s peaks between samples %s and %s...'%(len(tasks),theKey[0],theKey[1]))
-                output=hydra.map(consistentPeakFinder,tasks)
+
+                workNames=list(rawPeaks[samples[i]].keys())
+                tasks=[[peakName,samples[i],samples[j]] for peakName in workNames]
+                print('\t comparing %s peaks between samples %s and %s...'%(len(tasks),theKey[0],theKey[1]))
+
+                output=hydra.map(consistentPeakFinder,tasks)                
                 for element in output:
                     if element != []:
-                        comparison.append(element[1])
-                consistentPeaks[theKey]=comparison
+                        comparisonA.append(element)
 
+                        peakNameA=element[0].split(theKey[0]+'.')[1]
+                        peakNameB=element[1].split(theKey[1]+'.')[1]
+                        if peakNameA in filteredPeakNamesA and peakNameB in filteredPeakNamesB:
+                            comparisonF.append(element)
+                        
+                consistentAllPeaks[theKey]=comparisonA
+                consistentFilteredPeaks[theKey]=comparisonF
+                print('\t found {} all and {} filtered consistent peaks.'.format(len(comparisonA),len(comparisonF)))
+                print()
+                
     # creating variable for graphical representation
-    M=[]
+    MA=[]; MF=[]
     for i in range(len(samples)):
-        v=[]
+        va=[]; vf=[]
         for j in range(len(samples)):
-            localKey=(samples[i],samples[j])
-            inverseKey=(samples[j],samples[i])
-            if localKey in consistentPeaks.keys():
-                workingKey=localKey
+            if i == j:
+                valueA=len(rawPeaks[samples[i]])
+                valueF=len(selectedPeaks[samples[i]])
             else:
-                workingKey=inverseKey
-            v.append(len(consistentPeaks[workingKey]))
-        M.append(v)
-        
-    return consistentPeaks,M
+                localKey=(samples[i],samples[j])
+                inverseKey=(samples[j],samples[i])
+                if localKey in consistentAllPeaks.keys():
+                    workingKey=localKey
+                else:
+                    workingKey=inverseKey
+                valueA=len(consistentAllPeaks[workingKey])
+                valueF=len(consistentFilteredPeaks[workingKey])
+            va.append(valueA)
+            vf.append(valueF)
+        MA.append(va)
+        MF.append(vf)
+
+    return consistentAllPeaks,consistentFilteredPeaks,MA,MF
 
 def genomeOccupancyCalculator(assessingPeaks,label):
 
@@ -126,35 +166,45 @@ def genomeReader():
 
     return genePositions
 
-def getSignature10(peakNameA):
+def getSignature10(task):
 
     '''
     this function returns the gene name for a peak with signature 10
     '''
     
-    peakA=workingPeaks['0hA'][peakNameA]
-    currentChromosome=peakA[0]
+    peakPair=task[0]
+    flatCondition=task[1]
+    extension=task[2]
 
-    # check that is not found at 24hA
+    if extension == 'all':
+        workingPeaks=rawPeaks
+    elif extension == 'filtered':
+        workingPeaks=selectedPeaks
+    else:
+        print('error from getSignature10. exiting...')
+        sys.exit()
+
+    currentSampleLabel=peakPair[0].split('.')[0]
+    currentPeakName=peakPair[0].split(currentSampleLabel+'.')[1]
+    currentChromosome=rawPeaks[currentSampleLabel][currentPeakName][0]
+    
+    # check that none of the two peaks of the pair is at the flatten condition
     founds=[]
-    peaksB=[workingPeaks['24hA'][peakName] for peakName in workingPeaks['24hA'] if workingPeaks['24hA'][peakName][0] == currentChromosome]
-    for peakB in peaksB:
-        flag,overlap=isConsistent([peakA,peakB])
-        founds.append(flag)
-    foundA=sum(founds)
-
-    # check that is not found at 24hB
-    founds=[]
-    peaksB=[workingPeaks['24hB'][peakName] for peakName in workingPeaks['24hB'] if workingPeaks['24hB'][peakName][0] == currentChromosome]
-    for peakB in peaksB:
-        flag,overlap=isConsistent([peakA,peakB])
-        founds.append(flag)
-    foundB=sum(founds)
-
-    if foundA == 0 and foundB == 0:
+    flattenPeaksA=[workingPeaks[flatCondition[0]][peakName] for peakName in workingPeaks[flatCondition[0]] if workingPeaks[flatCondition[0]][peakName][0] == currentChromosome]
+    flattenPeaksB=[workingPeaks[flatCondition[1]][peakName] for peakName in workingPeaks[flatCondition[1]] if workingPeaks[flatCondition[1]][peakName][0] == currentChromosome]
+    flattenPeaks=flattenPeaksA+flattenPeaksB
+    #print('# of flatten peaks to probe',len(flattenPeaks),'chr',currentChromosome)
+    for single in peakPair:
+        peakA=rawPeaks[currentSampleLabel][currentPeakName]
+        for peakB in flattenPeaks:
+            flag,overlap=isConsistent([peakA,peakB])
+            founds.append(flag)
+    #print('# of answered flags',len(founds))
+    #print('# of founds in flatten',sum(founds))
+    if sum(founds) == 0:
         geneName=peakLocator(peakA)
     else:
-        geneName=None
+        geneName=None 
 
     return geneName
     
@@ -183,17 +233,18 @@ def isConsistent(pair):
         
     return flag,overlap
 
-def matrixGrapher(M,labels):
+def matrixGrapher(M,labels,figureTitle):
 
     '''
     this figure builds the correlation matrix
     '''
 
-    figureName=figuresDir+'peakConsistency.png'
+    figureName=figuresDir+'peakConsistency.{}.{}.png'.format(figureTitle.split(' ')[0],figureTitle.split(' ')[1])
 
     matplotlib.pyplot.imshow(M,interpolation='none',cmap='viridis')
-    cb=matplotlib.pyplot.colorbar(label='Consistent Peaks',orientation='vertical',fraction=0.01) 
-    cb.ax.tick_params(labelsize=10)
+    cb=matplotlib.pyplot.colorbar(orientation='vertical',fraction=0.05) 
+    cb.set_label(label='Consistent Peaks',size=20)
+    cb.ax.tick_params(labelsize=16)
     matplotlib.pyplot.grid(False)
 
     # setting the numbers
@@ -204,15 +255,15 @@ def matrixGrapher(M,labels):
     for i in range(len(M)):
         for j in range(len(M)):
             stringValue=str(M[i][j])
-            matplotlib.pyplot.text(x+deltax*i,y+deltay*j,stringValue,fontsize=10,color='white',horizontalalignment='center',verticalalignment='center')
+            matplotlib.pyplot.text(x+deltax*i,y+deltay*j,stringValue,fontsize=16,color='white',horizontalalignment='center',verticalalignment='center',fontweight='bold')
 
-    matplotlib.pyplot.xticks(range(len(labels)),labels,size=18,rotation=90)
-    matplotlib.pyplot.yticks(range(len(labels)),labels,size=18)
+    matplotlib.pyplot.xticks(range(len(labels)),labels,size=20,rotation=90)
+    matplotlib.pyplot.yticks(range(len(labels)),labels,size=20)
        
     matplotlib.pyplot.tick_params(axis='x',which='both',bottom='off',top='off')
     matplotlib.pyplot.tick_params(axis='y',which='both',right='off',left='off')
     matplotlib.pyplot.axes().set_aspect('equal')
-    matplotlib.pyplot.title('consistent peaks')
+    matplotlib.pyplot.title(figureTitle,fontsize=24)
     matplotlib.pyplot.tight_layout(0.5)
     matplotlib.pyplot.savefig(figureName)
 
@@ -234,8 +285,10 @@ def peakLocator(peak):
     distance=float('Inf')
     peakChromosome=peak[0]
     peakCenter=peak[1]+(peak[2]-peak[1])/2
+    
     for geneName in genePositions.keys():
         workingChromosome=genePositions[geneName][0]
+        
         if workingChromosome == peakChromosome:
             start=genePositions[geneName][1]
             stop=genePositions[geneName][2]
@@ -244,19 +297,21 @@ def peakLocator(peak):
             workingDistance=abs(geneCenter-peakCenter)
             if workingDistance < distance:
                 distance=workingDistance
-                gene4Peak=geneName
+                gene4Peak=geneName    
                 
     # 2. check that the peak is within 20% of the length of the gene
-    start=genePositions[gene4Peak][1]
-    stop=genePositions[gene4Peak][2]
-    interval=stop-start
-    bottom=start-0.2*interval
-    top=stop+0.2*interval
+    #! consider doing 33%. 
+    if gene4Peak != None:
+        start=genePositions[gene4Peak][1]
+        stop=genePositions[gene4Peak][2]
+        interval=stop-start
+        bottom=start-int(0.2*interval)
+        top=stop+int(0.2*interval)
 
-    if peak[1] > bottom and peak[2] < top:
-        pass
-    else:
-        gene4Peak=None
+        if peak[1] > bottom and peak[2] < top:
+            pass
+        else:
+            gene4Peak=None
     
     return gene4Peak
 
@@ -324,23 +379,28 @@ def peaksDistributionPlotter(peaks,flag):
 
     
     newViridis=matplotlib.cm.viridis
-    newViridis.set_bad('white')
+    newViridis.set_bad('white') 
     matplotlib.pyplot.imshow(zm,extent=[xedges[0],xedges[-1],yedges[0],yedges[-1]],cmap=newViridis,interpolation='nearest',origin='lower',aspect='auto',vmin=0,vmax=2)
-    cb=matplotlib.pyplot.colorbar(label='log10 Peak Count',fraction=0.05)
-    cb.ax.tick_params(labelsize=10)
+    cb=matplotlib.pyplot.colorbar(fraction=0.05)
+    cb.set_label(label='log$_{10}$ Peak Count',size=20)
+    cb.ax.tick_params(labelsize=18)
 
     # highlightling area of best peaks
-    matplotlib.pyplot.plot([2,5],[3,3],'-k',color='red')
-    matplotlib.pyplot.plot([2,2],[2,3],'-k',color='red')
+    matplotlib.pyplot.plot([2,5],[3,3],'-k',color='red',lw=2)
+    matplotlib.pyplot.plot([2,2],[2,3],'-k',color='red',lw=2)
     
-    matplotlib.pyplot.xlabel('Fold Enrichment')
-    matplotlib.pyplot.ylabel('Peak Size (bp)')
+    matplotlib.pyplot.xlabel('Fold Enrichment',fontsize=28)
+    matplotlib.pyplot.ylabel('Site Length (bp)',fontsize=28)
 
     positions=numpy.log10(numpy.array([100,200,300,500,750,1000,2000,4000,8000]))
     names=['100','200','300','500','750','1,000','2,000','4,000','8,000']
-    matplotlib.pyplot.yticks(positions,names)
+    matplotlib.pyplot.yticks(positions,names,fontsize=20)
+    matplotlib.pyplot.xticks(fontsize=20)
 
-    matplotlib.pyplot.title(flag)
+    theTitle='sample '+flag.split('.')[1]
+    matplotlib.pyplot.title(theTitle,fontsize=36)
+    
+    matplotlib.pyplot.tight_layout()
     
     matplotlib.pyplot.savefig(figuresDir+'figure.%s.png'%flag)
     matplotlib.pyplot.clf()
@@ -350,8 +410,7 @@ def peaksDistributionPlotter(peaks,flag):
 def peaksFilter():
 
     '''
-    this function removes any peak that is lower than 5-fold and extends for longer than 1 kb. 
-    it also plots the distribution of filtred and non-filtred peaks.
+    this function removes any peak that is lower than 2-fold and extends for longer than 1 kb. 
     '''
 
     filteredPeaks={}
@@ -400,9 +459,11 @@ def peaksFilter():
 #peaksDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
 peaksDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
 
-figuresDir='/proj/omics4tb/alomana/scratch/'
-jarFile='/proj/omics4tb/alomana/projects/csp.jgi/data/jars/jarFile_full.pckl'
+jarDir='/proj/omics4tb/alomana/projects/csp.jgi/data/jars/'
 gff3File='/proj/omics4tb/alomana/projects/csp.jgi/data/genome/Creinhardtii_281_v5.5.gene.gff3'
+figuresDir='/proj/omics4tb/alomana/projects/csp.jgi/results/figures/'
+
+numberOfThreads=40
 
 correspondance={}
 correspondance['0hA']='ASCAO'
@@ -415,8 +476,6 @@ correspondance['48hB']='ASCAW'
 peakFEThreshold=2
 peakLengthThreshold=1000
 genomeSize=111098438
-
-numberOfThreads=16
 
 # 0.1. reading gene locations
 genePositions=genomeReader()
@@ -436,75 +495,105 @@ for peaksFileName in peaksFileNames:
 
     label=peaksFileName.split('_')[0].split('.')[1]
     print('filtering sample %s...'%label)
+
     # 2.1. reading peaks
     peaks=peakReader()
     rawPeaks[label]=peaks
-
-    # 2.2. filtering peaks
     filteredPeaks=peaksFilter()
     selectedPeaks[label]=filteredPeaks
 
-    # 2.3. plot the distribution of peaks
-    #flag=peaksFileName.split('_peaks')[0]
-    #peaksDistributionPlotter(peaks,flag)
+    # 2.2. plot the distribution of peaks
+    flag=peaksFileName.split('_peaks')[0]
+    peaksDistributionPlotter(peaks,flag)
 
-    # 2.4. computing the size of genome that peaks occupy
+    # 2.3. computing the size of genome that peaks occupy
     genomeOccupancyCalculator(peaks,'all')
     genomeOccupancyCalculator(filteredPeaks,'filtered')
 
-sys.exit()
-
-# 3. define all genes that have matching patterns.
+# 3. define all genes that have matching patterns
+print()
 print('finding consistency among peaks...')
-workingPeaks=rawPeaks
 
-# 3.1. finding consistent peaks
-#consistentPeaks,M=generalConsistency(workingPeaks)
-#f=open(jarFile,'wb')
-#pickle.dump(M,f)
-#f.close()
-f=open(jarFile,'rb')
-M=pickle.load(f)
+# 3.1. finding consistent peaks among all peaks
+consistentAllPeaks,consistentFilteredPeaks,MA,MF=generalConsistency()
+
+"""
+# 3.2. saving consistent peaks and reading consistent peaks
+jarFile=jarDir+'consistentPeaks.pickle'
+f=open(jarFile,'wb')
+pickle.dump([consistentAllPeaks,consistentFilteredPeaks,MA,MF],f)
 f.close()
+"""
 
-# 3.3. plotting consistency numbers
-#sampleNames=list(workingPeaks.keys())
-#sampleNames.sort()
-#matrixGrapher(M,sampleNames)
+# 3.3. plotting heat map of consistency counts for all and filtered peaks
+sampleNames=list(rawPeaks.keys())
+sampleNames.sort()
+matrixGrapher(MA,sampleNames,'full set')
+matrixGrapher(MF,sampleNames,'filtered set')
 
 # 4. locating genes with variable signature
-print('locating genes with specific signatures...')
+print()
+print('defining genes with specific signatures...')
 hydra=multiprocessing.pool.Pool(numberOfThreads)
 
 # 4.1. 10 signature
-genesSignature10=[]
-peakNames=list(workingPeaks['0hA'].keys())
-output=hydra.map(getSignature10,peakNames)
-genesSignature10=list(set(output))
-print(genesSignature10)
-sys.exit()
+print('\t working with 10 signature...')
 
+genesAllSignature10=[]
+genesFilteredSignature10=[]
 
+positiveCondition=('0hA','0hB')
+flatCondition=('24hA','24hB')
 
-sys.exit()
+tasks=[[element,flatCondition,'all'] for element in consistentAllPeaks[positiveCondition]]
+print('\t interrogating',len(tasks),'consistent pairs of peaks...')
+output=hydra.map(getSignature10,tasks)
+genesAllSignature10=list(set(output))
+genesAllSignature10.remove(None)
+
+tasks=[[element,flatCondition,'filtered'] for element in consistentFilteredPeaks[positiveCondition]]
+print('\t interrogating',len(tasks),'consistent and filtered pairs of peaks...')
+output=hydra.map(getSignature10,tasks)
+genesFilteredSignature10=list(set(output))
+genesFilteredSignature10.remove(None)
+
+print('%s genes found with broad 10 signature.'%len(genesAllSignature10))
+print('%s genes found with filtered 10 signature.'%len(genesFilteredSignature10))
+
+jarFile=jarDir+'signature10.pickle'
+f=open(jarFile,'wb')
+pickle.dump([genesAllSignature10,genesFilteredSignature10],f)
+f.close()
+
 # 4.2. 01 signature
-genesSignature10=[]
+print('\t working with 01 signature...')
 
-# define consistent peaks at 24 h
-for peakNameA in workingPeaks['24hA']:
-    peakA=workingPeaks['0hA'][peakNameA]
-    currentChromosome=peakA[0]
-    peaksB=[workingPeaks['24hA'][peakName] for peakName in workingPeaks['24hA'] if workingPeaks['24hA'][peakName][0] == currentChromosome]
-    tasks=[[peakA,element] for element in peaksB]
-    output=hydra.map(isConsistent,tasks)
-# check that they do not exist at 0hA
+genesAllSignature01=[]
+genesFilteredSignature01=[]
 
-# 4.3. distribution of fold changes
-print('finding expression values...')
+flatCondition=('0hA','0hB')
+positiveCondition=('24hA','24hB')
 
-# 4.4. building figure
-print('building figure...')
+tasks=[[element,flatCondition,'all'] for element in consistentAllPeaks[positiveCondition]]
+print('\t interrogating',len(tasks),'consistent pairs of peaks...')
+output=hydra.map(getSignature10,tasks)
+genesAllSignature01=list(set(output))
+genesAllSignature01.remove(None)
 
+tasks=[[element,flatCondition,'filtered'] for element in consistentFilteredPeaks[positiveCondition]]
+print('\t interrogating',len(tasks),'consistent and filtered pairs of peaks...')
+output=hydra.map(getSignature10,tasks)
+genesFilteredSignature01=list(set(output))
+genesFilteredSignature01.remove(None)
 
-# 4. define significance
-#print('assessing signficance of found patterns...')
+print('%s genes found with broad 01 signature.'%len(genesAllSignature01))
+print('%s genes found with filtered 01 signature.'%len(genesFilteredSignature01))
+
+jarFile=jarDir+'signature01.pickle'
+f=open(jarFile,'wb')
+pickle.dump([genesAllSignature01,genesFilteredSignature01],f)
+f.close()
+
+# 5. final message
+print()
+print('... all done.')
