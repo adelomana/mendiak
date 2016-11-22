@@ -459,7 +459,7 @@ def peaksFilter():
 #peaksDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
 peaksDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
 
-jarDir='/proj/omics4tb/alomana/projects/csp.jgi/data/jars/'
+jarDir='/proj/omics4tb/alomana/projects/csp.jgi/results/jars.tempo/'
 gff3File='/proj/omics4tb/alomana/projects/csp.jgi/data/genome/Creinhardtii_281_v5.5.gene.gff3'
 figuresDir='/proj/omics4tb/alomana/projects/csp.jgi/results/figures/'
 
