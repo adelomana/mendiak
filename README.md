@@ -24,3 +24,6 @@ Tool to generate subsampled FASTQ files for the generation of saturation curves.
 
 **patternFinder.py**  
 Tool to find genes that have 01 or 10 signature of FSSs.
+
+**signatureGenesExpression.py**  
+Tool to find patterns of expression on signature genes.
