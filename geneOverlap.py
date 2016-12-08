@@ -6,11 +6,18 @@ import pickle
 
 # 0. user defined variables
 jarDir='/Volumes/omics4tb/alomana/projects/csp.jgi/results/jars/'
-signature10Pickle=jarDir+'signature10.pickle'
+signature01Pickle=jarDir+'signature01.pickle'
 
 # 1. reading signature genes
-f=open(signature10Pickle,'rb')
-[genesAllSignature10,genesFilteredSignature10]=pickle.load(f)
+f=open(signature01Pickle,'rb')
+[genesAllSignature01,genesFilteredSignature01]=pickle.load(f)
 f.close()
 
-print(genesAllSignature10)
+# 2. compute distribution of expression for signature genes
+signatureExpression=
+
+# 3. compute distribution of n samples of random genes
+
+# 4. plot figure
+
+print(len(genesAllSignature01),len(genesFilteredSignature01))
