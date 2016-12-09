@@ -299,7 +299,7 @@ def peakLocator(peak):
                 distance=workingDistance
                 gene4Peak=geneName    
                 
-    # 2. check that the peak is within 20% of the length of the gene
+    # 2. check that the peak is within 20% of the length of the gene #### this function needs to be improved to avoid overlaps and search for at least 0.5 kb if gene is very small
     #! consider doing 33%. 
     if gene4Peak != None:
         start=genePositions[gene4Peak][1]
