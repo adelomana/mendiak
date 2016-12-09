@@ -9,6 +9,60 @@ import matplotlib
 matplotlib.use('Agg') # necessary for saving figures at remove machine
 import matplotlib.pyplot
 
+def consistentGenePerSampleFinder(flag):
+
+    '''
+    this function searches and stores genes with consistent pattern of FSSs per biological replicate
+    '''
+
+    bioReplicates=[('0hA','0hB'),('24hA','24hB'),('48hA','48hB')]
+    consistentGenes={}
+    
+    for bio in bioReplicates:
+        
+        if flag == 'all':
+            pairsOfPeaks=consistentAllPeaks[bio]
+        elif flag == 'filtered':
+            pairsOfPeaks=consistentFilteredPeaks[bio]
+        else:
+            print('error interpreting flag. exiting...')
+            sys.exit()
+
+        g=[]
+        for peakPair in pairsOfPeaks:
+
+            currentSampleLabel=peakPair[0].split('.')[0]
+            currentPeakName=peakPair[0].split(currentSampleLabel+'.')[1]
+            peakA=rawPeaks[currentSampleLabel][currentPeakName]
+            closerA=peakLocator(peakA)
+
+            currentSampleLabel=peakPair[1].split('.')[0]
+            currentPeakName=peakPair[1].split(currentSampleLabel+'.')[1]
+            peakB=rawPeaks[currentSampleLabel][currentPeakName]
+            closerB=peakLocator(peakB)
+
+            if closerA != None:
+                if closerA == closerB:
+                    if closerA not in g:
+                        g.append(closerA)
+
+        consistentGenes[bio]=g
+        
+    # storing the info into pickles
+    if flag == 'all':
+        jarFile=jarDir+'consistentGenes.all.pickle'
+    elif flag == 'filtered':
+        jarFile=jarDir+'consistentGenes.filtered.pickle'
+    else:
+        print('error interpreting flag. exiting...')
+        sys.exit()
+        
+    f=open(jarFile,'wb')
+    pickle.dump(consistentGenes,f)
+    f.close()
+                
+    return None
+
 def consistentPeakFinder(task):
 
     '''
@@ -193,14 +247,12 @@ def getSignature10(task):
     flattenPeaksA=[workingPeaks[flatCondition[0]][peakName] for peakName in workingPeaks[flatCondition[0]] if workingPeaks[flatCondition[0]][peakName][0] == currentChromosome]
     flattenPeaksB=[workingPeaks[flatCondition[1]][peakName] for peakName in workingPeaks[flatCondition[1]] if workingPeaks[flatCondition[1]][peakName][0] == currentChromosome]
     flattenPeaks=flattenPeaksA+flattenPeaksB
-    #print('# of flatten peaks to probe',len(flattenPeaks),'chr',currentChromosome)
     for single in peakPair:
         peakA=rawPeaks[currentSampleLabel][currentPeakName]
         for peakB in flattenPeaks:
             flag,overlap=isConsistent([peakA,peakB])
             founds.append(flag)
-    #print('# of answered flags',len(founds))
-    #print('# of founds in flatten',sum(founds))
+            
     if sum(founds) == 0:
         geneName=peakLocator(peakA)
     else:
@@ -456,13 +508,17 @@ def peaksFilter():
 ##
 
 # 0. user defined variables
-#peaksDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
 peaksDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.run3/'
 jarDir='/proj/omics4tb/alomana/projects/csp.jgi/results/jars.wk/'
 gff3File='/proj/omics4tb/alomana/projects/csp.jgi/data/genome/Creinhardtii_281_v5.5.gene.gff3'
 figuresDir='/proj/omics4tb/alomana/projects/csp.jgi/results/figures/'
 
-numberOfThreads=40
+numberOfThreads=64
+
+## testing
+## peaksDir='/proj/omics4tb/alomana/projects/csp.jgi/data/macs2.test/'
+## numberOfThreads=12
+##########
 
 correspondance={}
 correspondance['0hA']='ASCAO'
@@ -516,15 +572,13 @@ print('finding consistency among peaks...')
 # 3.1. finding consistent peaks among all peaks
 consistentAllPeaks,consistentFilteredPeaks,MA,MF=generalConsistency()
 
-"""
-# 3.2. saving consistent peaks and reading consistent peaks
-jarFile=jarDir+'consistentPeaks.pickle'
-f=open(jarFile,'wb')
-pickle.dump([consistentAllPeaks,consistentFilteredPeaks,MA,MF],f)
-f.close()
-"""
+# 3.2. finding and storing genes with consistent peak presence
+print('finding and storing genes with consistent peak presence...')
+consistentGenePerSampleFinder('all')
+consistentGenePerSampleFinder('filtered')
 
 # 3.3. plotting heat map of consistency counts for all and filtered peaks
+print('analysis of consistent peaks...')
 sampleNames=list(rawPeaks.keys())
 sampleNames.sort()
 matrixGrapher(MA,sampleNames,'full set')

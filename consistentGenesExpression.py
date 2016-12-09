@@ -29,7 +29,7 @@ def expressionReader():
 
 # 0. user defined variables
 jarDir='/Volumes/omics4tb/alomana/projects/csp.jgi/results/jars.wk/'
-consistentGenesJar=jarDir+'consistentGenes.pickle'
+consistentGenesJar=jarDir+'consistentGenes.filtered.pickle'
 expressionDataFile='/Volumes/omics4tb/alomana/projects/csp.jgi/data/expression/matrix.19506.v.5.5.FPKM.txt'
 iterations=100
 
