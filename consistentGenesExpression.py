@@ -5,6 +5,22 @@
 import pickle,sys,numpy
 import matplotlib,matplotlib.pyplot
 import scipy,scipy.stats,scipy.interpolate
+import multiprocessing,multiprocessing.pool
+
+def backgroundDistributionFinder(tempo):
+
+    '''
+    this function computes the background distribution for genes without FSSs
+    '''
+
+    sampledGenes=numpy.random.choice(otherSideGenes,size=len(expression24h))
+    v=[]
+    for gene in sampledGenes:
+        fpkm=expression[gene]
+        v.append(numpy.log10(fpkm+1))
+    v.sort()
+
+    return v
 
 def expressionReader():
     
@@ -31,8 +47,9 @@ def expressionReader():
 jarDir='/Volumes/omics4tb/alomana/projects/csp.jgi/results/jars/'
 consistentGenesJar=jarDir+'consistentGenes.filtered.pickle'
 expressionDataFile='/Volumes/omics4tb/alomana/projects/csp.jgi/data/expression/matrix.19506.v.5.5.FPKM.txt'
-iterations=100
 figuresDir='/Volumes/omics4tb/alomana/projects/csp.jgi/results/figures/'
+numberOfThreads=4
+iterations=100
 
 # 1. reading data
 print('reading data...')
@@ -59,38 +76,35 @@ print('computing statistical analysis...')
 
 # working with signature genes
 probS,binEdges=numpy.histogram(expression24h,bins='auto',density=True)
+print('maybe')
 cumsumSignature=numpy.cumsum(probS)/sum(probS)
 halfBin=binEdges[1]/2
 x=[element+halfBin for element in binEdges]
 x.pop()
 
+print('preparing figure...')
 matplotlib.pyplot.plot(x,cumsumSignature,'or',mew=0,alpha=0.5)
 model=scipy.interpolate.PchipInterpolator(x,cumsumSignature)
 newTime=numpy.arange(min(x),max(x),(max(x)-min(x))/100)
 inter=model(newTime)
-matplotlib.pyplot.plot(newTime,inter,'-r',lw=2)
+matplotlib.pyplot.plot(newTime,inter,'-r',lw=2,label='genes with FSSs')
+print('after preparing figure...')
 
 # working with background genes
 allGenes=list(expression.keys())
+print('finding the other side')
 otherSideGenes=[gene for gene in allGenes if gene not in expression24h]
 
-backgroundDist=[]
-for i in range(iterations):
-    sampledGenes=numpy.random.choice(otherSideGenes,size=len(expression24h))
-    v=[]
-    for gene in sampledGenes:
-        fpkm=expression[gene]
-        v.append(numpy.log10(fpkm+1))
-    v.sort()
-    backgroundDist.append(v)
-    ks,pvalue=scipy.stats.ks_2samp(expression24h,v)
-    print('\t iteration {}, ks={}, p-value={}'.format(i,ks,pvalue))
-print()
+print('before')
+hydra=multiprocessing.pool.Pool(numberOfThreads)
+tasks=[i for i in range(100)]
+backgroundDist=hydra.map(backgroundDistributionFinder,tasks)
+print('after')
 
 background=numpy.array(backgroundDist)
 meanBackground=numpy.mean(background,axis=0)
 ksF,pvalueF=scipy.stats.ks_2samp(expression24h,meanBackground)
-print('\t against mean background distribution: ks={}, p-value={}'.format(ks,pvalue))
+print('against mean background distribution: ks={}, p-value={}'.format(ksF,pvalueF))
 
 probB,tempo=numpy.histogram(meanBackground,bins=binEdges,density=True)
 cumsumBackground=numpy.cumsum(probB)/sum(probB)
@@ -99,14 +113,15 @@ matplotlib.pyplot.plot(x,cumsumBackground,'ok',mew=0,alpha=0.5)
 model=scipy.interpolate.PchipInterpolator(x,cumsumBackground)
 newTime=numpy.arange(min(x),max(x),(max(x)-min(x))/100)
 inter=model(newTime)
-matplotlib.pyplot.plot(newTime,inter,'-k',lw=2)
+matplotlib.pyplot.plot(newTime,inter,'-k',lw=2,label='genes without FSSs')
 
 matplotlib.pyplot.xlim([-0.1,4.1])
 matplotlib.pyplot.ylim([-0.05,1.05])
 
-matplotlib.pyplot.xlabel('expression, $e$ (log$_2$(FPKM+1))')
+matplotlib.pyplot.xlabel('expression, $e$ (log$_10$(FPKM+1))')
 matplotlib.pyplot.ylabel('CDF (P($E \leq e$)')
 
+matplotlib.pyplot.legend(loc=4)
+
 figureFile=figuresDir+'pdf.24h.pdf'
-matplotlib.pyplot.savefig('thefigure.pdf')
-#matplotlib.pyplot.savefig(figureFile)
+matplotlib.pyplot.savefig(figureFile)
